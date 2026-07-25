@@ -1,6 +1,6 @@
 # Гипотеза конструкта
 
-<img width="1254" height="1254" alt="construct" src="https://github.com/user-attachments/assets/fe366f75-eb04-491e-b2fd-0f5eb12d3469" />
+<img width="1536" height="1024" alt="l1" src="https://github.com/user-attachments/assets/4228c842-1bad-4fd1-b5c8-1ba67a77cd4a" />
 
 Корпус документов фиксирует рабочую модель конструкта как модели мира.
 
