@@ -12,7 +12,7 @@ def test_parse_valid_decision():
 
 
 def test_parse_fenced_json():
-    action, _ = _parse_decision('\\x60\\x60\\x60json\\n{"action":"MOVE_E","expectation":"Move east."}\\n\\x60\\x60\\x60')
+    action, _ = _parse_decision('\x60\x60\x60json\n{"action":"MOVE_E","expectation":"Move east."}\n\x60\x60\x60')
     assert action == "MOVE_E"
 
 
