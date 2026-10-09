@@ -47,7 +47,20 @@ class Environment:
         self.done: bool = False
         self.known_costs: Dict[str, Cost] = {}
 
-    def generate(self, seed: int, swapped_law: bool = False) -> Episode:
+    def generate(
+        self,
+        seed: int,
+        swapped_law: bool = False,
+        *,
+        require_resource_feasible: bool = False,
+    ) -> Episode:
+        """Generate a deterministic world.
+
+        With resource validation enabled, require a route that can be completed
+        within the configured time and energy budgets under both the generated
+        cost law and the A/B-swapped law. This is optional so tests can still
+        construct deliberately resource-infeasible worlds.
+        """
         rng = random.Random(seed)
         law = {
             "A": Cost(time=1, energy=4),
@@ -58,6 +71,7 @@ class Environment:
                 "A": Cost(time=4, energy=1),
                 "B": Cost(time=1, energy=4),
             }
+        alternate_law = {"A": law["B"], "B": law["A"]}
 
         for _ in range(1000):
             g = [
@@ -81,8 +95,14 @@ class Environment:
             g[goal[1]][goal[0]] = "G"
 
             ep = Episode(seed=seed, grid=g, start=start, goal=goal, cost_law=law)
-            if self._reachable(ep):
-                return ep
+            if not self._reachable(ep):
+                continue
+            if require_resource_feasible and not (
+                self._resource_reachable(ep, law)
+                and self._resource_reachable(ep, alternate_law)
+            ):
+                continue
+            return ep
 
         raise RuntimeError(f"Could not generate episode for seed {seed}")
 
@@ -178,6 +198,37 @@ class Environment:
 
     def _in_bounds(self, p: Pos) -> bool:
         return 0 <= p[0] < self.config.width and 0 <= p[1] < self.config.height
+
+    def _resource_reachable(self, ep: Episode, cost_law: Dict[str, Cost]) -> bool:
+        """Check resource-feasible paths without exposing this to the agent."""
+        initial = (ep.start, self.config.initial_time, self.config.initial_energy)
+        queue = deque([initial])
+        seen = {initial}
+        deltas = ((0, -1), (0, 1), (1, 0), (-1, 0))
+
+        while queue:
+            position, time_left, energy_left = queue.popleft()
+            x, y = position
+            for dx, dy in deltas:
+                target = (x + dx, y + dy)
+                if not self._in_bounds(target) or ep.grid[target[1]][target[0]] == "#":
+                    continue
+
+                tile = ep.grid[target[1]][target[0]]
+                cost = Cost(1, 1) if tile in ("S", "G") else cost_law[tile]
+                next_time = time_left - cost.time
+                next_energy = energy_left - cost.energy
+                # step() checks the goal before resource exhaustion.
+                if target == ep.goal:
+                    return True
+                if next_time <= 0 or next_energy <= 0:
+                    continue
+
+                state = (target, next_time, next_energy)
+                if state not in seen:
+                    seen.add(state)
+                    queue.append(state)
+        return False
 
     def _reachable(self, ep: Episode) -> bool:
         q = deque([ep.start])
